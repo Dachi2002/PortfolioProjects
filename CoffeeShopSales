@@ -1,0 +1,180 @@
+Select *
+From coffee_shop_sales ;
+
+Describe coffee_shop_sales ;
+
+-- Data Cleaning 
+
+Update coffee_shop_sales
+Set transaction_date = STR_To_Date(transaction_date , '%d.%m.%Y');
+Alter Table coffee_shop_sales
+Modify Column transaction_date DATE ;
+
+Update coffee_shop_sales
+Set transaction_time = STR_TO_DATE(transaction_time , '%H:%i:%s');
+Alter Table coffee_shop_sales
+Modify Column transaction_time TIME ;
+
+Alter Table coffee_shop_sales
+Change Column ï»¿transaction_id transaction_id INT ;
+
+-- Total Sales Analysis
+
+Select Round(SUM(unit_price * transaction_qty)) as Total_Sales
+From coffee_shop_sales 
+Where 
+ MONTH(transaction_date) = 3 ; 
+ 
+ Select 
+		MONTH(transaction_date) As Month ,
+		Round(SUM(unit_price * transaction_qty)) as Total_Sales ,
+        (SUM(unit_price * transaction_qty)) - LAG(SUM(unit_price * transaction_qty), 1)
+        Over (Order By Month (transaction_date)) / LAG(SUM(unit_price * transaction_qty), 1)
+		Over (Order By Month (transaction_date)) * 100 As Mom_Increase_Percentage
+From coffee_shop_sales
+Where Month (transaction_date) in ( 4,5 )
+Group By Month (transaction_date)
+Order By Month (transaction_date) ;
+
+-- Total Orders 
+
+Select COUNT(transaction_id) As Total_Orders
+From coffee_shop_sales 
+Where month(transaction_date) = 2 ; 
+
+SELECT 
+    MONTH(transaction_date) AS month,
+    ROUND(COUNT(transaction_id)) AS total_orders,
+    (COUNT(transaction_id) - LAG(COUNT(transaction_id), 1) 
+    OVER (ORDER BY MONTH(transaction_date))) / LAG(COUNT(transaction_id), 1) 
+    OVER (ORDER BY MONTH(transaction_date)) * 100 AS mom_increase_percentage
+From coffee_shop_sales
+Where month(transaction_date) in (4,5)
+group by month(Transaction_date)
+order by month(transaction_Date) ;
+
+-- Quantity Sold
+
+Select COUNT(transaction_qty) As Total_Quantity_Sold
+From coffee_shop_sales
+Where month(transaction_Date) = 4 ;
+
+Select Month(transaction_date) As Month ,
+       Round(Count(transaction_qty)) As Total_Quantity_Sold ,
+	   (Count(transaction_qty) - LAG(Count(transaction_qty),1)
+       Over (Order by month(transaction_date))) / LAG(Count(transaction_qty),1)
+       Over (Order by month(transaction_date)) * 100 As mom_increase_percentage
+From coffee_shop_sales 
+Where Month(transaction_date) in (4,5)
+group by Month(transaction_date)
+order by Month(transaction_date) ;
+
+-- 
+
+Select concat(ROUND(SUM(transaction_qty * unit_price)/1000,1),'K')Total_Sales , 
+       concat(round(SUM(transaction_qty)/1000,1),'K') Total_Qty_Sold,
+       concat(round(COUNT(transaction_id)/1000,1),'K') Total_Orders 
+From coffee_shop_sales
+Where transaction_date = '2023-05-18' ;
+
+-- 
+
+Select 
+       Case When Dayofweek(transaction_date) IN (1,7) THEN 'Weekends'
+       Else 'Weekdays'
+       END Day_Type ,
+       Concat(Round(SUM(transaction_qty * unit_price)/1000),'K') Total_Sales
+From coffee_shop_sales
+Where month(transaction_date) = 5
+Group By   Case When Dayofweek(transaction_date) IN (1,7) THEN 'Weekends'
+Else 'Weekdays'
+       END;
+
+-- Sales Analysis By Store Location
+
+Select
+       store_location,
+       Concat(Round(SUM(unit_price * transaction_qty)/1000,1),'K') Total_Sales 
+From coffee_shop_sales
+Where Month(transaction_date) = 5 
+Group By store_location
+Order By Concat(Round(SUM(unit_price * transaction_qty)/1000,1),'K') DESC ;
+
+
+Select 
+      Concat(Round(AVG(Total_Sales)/1000,1),'K') As AVG_Of_Total_Sales
+From (
+      Select SUM(unit_price * transaction_qty) as Total_Sales
+      From coffee_shop_sales
+      Where MONTH(transaction_date) = 5
+      Group By transaction_date 
+      ) As Internal_Querry ;
+      
+Select 
+       Day(transaction_date) As Day_Of_Month ,
+       Concat(Round(SUM(unit_price * transaction_qty)/1000,1),'K')
+From coffee_shop_sales
+Where Month(transaction_date) = 5 
+Group By Day(transaction_date)
+Order By Day(transaction_date) ;
+
+--
+ 
+Select day_of_month,
+       Case when total_sales > avg_of_sales THEN 'Above Average' 
+            When total_sales < avg_of_sales THEN 'Below Average' 
+		Else 'Average' 
+        END Sales_Status ,
+        total_sales
+From (
+       Select 
+             DAY(transaction_date) day_of_month ,
+             Concat(Round(SUM(unit_price * transaction_qty)/1000,1),'K') total_sales ,
+             AVG(SUM(unit_price * transaction_qty)) OVER () avg_of_sales 
+	   From coffee_shop_sales
+       Where month(transaction_date) = 5
+       group by transaction_date
+       ) Sales_Data 
+Order By day_of_month ;
+       
+-- 
+       
+Select product_category,
+       (SUM(unit_price * transaction_qty)) total_sales
+From coffee_shop_sales
+Where MONTH(transaction_date) = 5
+Group By product_category
+Order By  (SUM(unit_price * transaction_qty)) DESC
+Limit 5;
+        
+--
+
+   SELECT 
+    CASE 
+        WHEN DAYOFWEEK(transaction_date) = 2 THEN 'Monday'
+        WHEN DAYOFWEEK(transaction_date) = 3 THEN 'Tuesday'
+        WHEN DAYOFWEEK(transaction_date) = 4 THEN 'Wednesday'
+        WHEN DAYOFWEEK(transaction_date) = 5 THEN 'Thursday'
+        WHEN DAYOFWEEK(transaction_date) = 6 THEN 'Friday'
+        WHEN DAYOFWEEK(transaction_date) = 7 THEN 'Saturday'
+        ELSE 'Sunday'
+    END AS Day_of_Week,
+    ROUND(SUM(unit_price * transaction_qty)) AS Total_Sales
+FROM 
+    coffee_shop_sales
+WHERE 
+    MONTH(transaction_date) = 5 -- Filter for May (month number 5)
+    GROUP BY 
+    CASE 
+        WHEN DAYOFWEEK(transaction_date) = 2 THEN 'Monday'
+        WHEN DAYOFWEEK(transaction_date) = 3 THEN 'Tuesday'
+        WHEN DAYOFWEEK(transaction_date) = 4 THEN 'Wednesday'
+        WHEN DAYOFWEEK(transaction_date) = 5 THEN 'Thursday'
+        WHEN DAYOFWEEK(transaction_date) = 6 THEN 'Friday'
+        WHEN DAYOFWEEK(transaction_date) = 7 THEN 'Saturday'
+        ELSE 'Sunday'
+    END;
+ 
+        
+       
+       
